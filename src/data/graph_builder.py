@@ -99,6 +99,10 @@ class GraphBuilder:
         data['item', 'interacted_by', 'user'].edge_attr = torch.tensor(
             interactions['interaction_type'].values, dtype=torch.float
         ).unsqueeze(1)
+
+        # 设置每种节点类型的节点数量,就这里是加上的
+        data['user'].num_nodes = user_features.shape[0]
+        data['item'].num_nodes = item_features.shape[0]
         
         return data
 

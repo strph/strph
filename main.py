@@ -10,6 +10,7 @@ from src.training.online_learner import OnlineLearner
 from src.utils.ab_testing import ABTest
 from src.utils.visualization import RecommenderVisualizer
 
+
 def main(args):
     # 设置设备
     device = torch.device('cuda' if torch.cuda.is_available() and not args.no_cuda else 'cpu')
@@ -17,11 +18,16 @@ def main(args):
 
     # 加载数据
     print("Loading data...")
-    graph_data = ECommerceDataset(root=args.data_dir, raw_user_data='users.csv', 
+    graph_data = ECommerceDataset(root=args.data_dir, raw_user_data='users.csv',
                                   raw_item_data='items.csv', raw_interaction_data='interactions.csv')
-    train_data = RecommendationDataset(root=args.data_dir, graph_data=graph_data[0], split='train')
-    val_data = RecommendationDataset(root=args.data_dir, graph_data=graph_data[0], split='val')
-    test_data = RecommendationDataset(root=args.data_dir, graph_data=graph_data[0], split='test')
+    train_dataset = RecommendationDataset(root=args.data_dir, graph_data=graph_data[0], split='train')
+    val_dataset = RecommendationDataset(root=args.data_dir, graph_data=graph_data[0], split='val')
+    test_dataset = RecommendationDataset(root=args.data_dir, graph_data=graph_data[0], split='test')
+
+    # 获取具体的数据对象
+    train_data = train_dataset.get(0)  # 获取训练数据对象
+    val_data = val_dataset.get(0)  # 获取验证数据对象
+    test_data = test_dataset.get(0)  # 获取测试数据对象
 
     # 创建模型
     print("Creating models...")
@@ -40,8 +46,11 @@ def main(args):
 
     # 训练模型
     print("Training models...")
-    gcn_trainer.train(train_data, val_data, num_epochs=args.epochs, batch_size=args.batch_size, early_stopping=args.early_stopping)
-    gat_trainer.train(train_data, val_data, num_epochs=args.epochs, batch_size=args.batch_size, early_stopping=args.early_stopping)
+
+    gcn_trainer.train(train_data, val_data, num_epochs=args.epochs, batch_size=args.batch_size,
+                      early_stopping=args.early_stopping)
+    gat_trainer.train(train_data, val_data, num_epochs=args.epochs, batch_size=args.batch_size,
+                      early_stopping=args.early_stopping)
 
     # 创建评估器
     gcn_evaluator = GraphRecommenderEvaluator(gcn_model, device)
@@ -54,26 +63,26 @@ def main(args):
 
     # 创建A/B测试
     ab_test = ABTest(name="GCN vs GAT Recommender", control_group="GCN", test_group="GAT")
-    
+
     # 添加指标
     for k in gcn_metrics.keys():
         for metric in gcn_metrics[k].keys():
             ab_test.add_metric(f"{metric}@{k}", higher_is_better=True)
-    
+
     # 添加A/B测试数据
     for k, values in gcn_metrics.items():
         for metric, score in values.items():
             ab_test.add_observation("GCN", f"{metric}@{k}", score)
-    
+
     for k, values in gat_metrics.items():
         for metric, score in values.items():
             ab_test.add_observation("GAT", f"{metric}@{k}", score)
-    
+
     # 运行A/B测试
     ab_results = ab_test.run_test()
     print("\nA/B Test Results:")
     print(ab_test.summary())
-    
+
     # 可视化A/B测试结果
     ab_fig = ab_test.plot_results()
     ab_fig.savefig('ab_test_results.png')
@@ -86,9 +95,9 @@ def main(args):
     print("\nSimulating online learning...")
     for i in range(10):
         # 模拟新的交互数据
-        new_interactions = [(i, i+100, 5) for i in range(10)]  # (user_id, item_id, rating)
+        new_interactions = [(i, i + 100, 5) for i in range(10)]  # (user_id, item_id, rating)
         loss = online_learner.update(new_interactions)
-        print(f"Online learning iteration {i+1}, loss: {loss:.4f}")
+        print(f"Online learning iteration {i + 1}, loss: {loss:.4f}")
 
     # 创建可视化器
     visualizer = RecommenderVisualizer(gcn_model, graph_data)
@@ -117,6 +126,7 @@ def main(args):
     print("Metrics history visualization saved as 'metrics_history.png'")
 
     print("\nEvaluation complete. Visualizations have been saved.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Graph-based Recommender System')

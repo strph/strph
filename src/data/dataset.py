@@ -2,9 +2,9 @@ import os
 import torch
 import numpy as np
 import pandas as pd
-from torch_geometric.data import Dataset, download_url
-from .graph_builder import GraphBuilder
-from .preprocess import load_and_preprocess_data
+from torch_geometric.data import Dataset, download_url, Data
+from src.data.graph_builder import GraphBuilder
+from src.data.preprocess import load_and_preprocess_data
 
 class ECommerceDataset(Dataset):
     """
@@ -168,11 +168,15 @@ class RecommendationDataset(Dataset):
     def len(self):
         data = torch.load(os.path.join(self.processed_dir, f'{self.split}_samples.pt'))
         return len(data['users'])
-    
+
     def get(self, idx):
         data = torch.load(os.path.join(self.processed_dir, f'{self.split}_samples.pt'))
-        return {
-            'user': data['users'][idx],
-            'pos_item': data['pos_items'][idx],
-            'neg_items': data['neg_items'][idx]
-        }
+        # 创建 Data 对象
+        graph_data = Data(
+            user=data['users'][idx],
+            pos_item=data['pos_items'][idx],
+            neg_items=data['neg_items'][idx],
+            # 这里需要添加 edge_index，你可以根据实际情况修改
+            edge_index=self.graph_data['user', 'interacts', 'item'].edge_index
+        )
+        return graph_data
